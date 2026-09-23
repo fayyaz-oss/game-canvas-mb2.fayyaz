@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Volley Arena - Game Bola Voli Multiplayer</title>
+    <meta name="description" content="Game bola voli arcade fisika 2D interaktif dengan mode 2-Player Lokal dan Online Multiplayer P2P WebRTC.">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- PeerJS CDN untuk koneksi WebRTC P2P Multiplayer tanpa server backend -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+    <div class="game-viewport">
+        <!-- In-game HUD -->
+        <div class="hud-overlay">
+            <!-- Tim Merah (Player 1) -->
+            <div class="team-hud team-p1">
+                <div class="score-digit" id="p1ScoreDisplay">0</div>
+                <div class="team-info">
+                    <div class="team-name" id="p1NameDisplay">
+                        Player 1
+                        <span class="server-badge" id="p1ServerBadge">SERVE</span>
+                    </div>
+                    <div class="power-bar-wrapper" title="Super Spike Meter">
+                        <div class="power-fill" id="p1PowerFill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tombol Navigasi Tengah -->
+            <div class="hud-center">
+                <button class="hud-btn" id="audioToggleBtn" title="Suara / Mute">🔊</button>
+                <button class="hud-btn" id="controlsHelpBtn" title="Petunjuk Kontrol">🎮</button>
+                <button class="hud-btn" id="menuHomeBtn" title="Kembali ke Menu">🏠</button>
+            </div>
+
+            <!-- Tim Biru (Player 2 / AI) -->
+            <div class="team-hud team-p2">
+                <div class="score-digit" id="p2ScoreDisplay">0</div>
+                <div class="team-info">
+                    <div class="team-name" id="p2NameDisplay">
+                        Bot AI
+                        <span class="server-badge" id="p2ServerBadge" style="display: none;">SERVE</span>
+                    </div>
+                    <div class="power-bar-wrapper" title="Super Spike Meter">
+                        <div class="power-fill" id="p2PowerFill"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kanvas Game 1200 x 650 -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- OVERLAY: Menu Utama -->
+        <div class="overlay-screen" id="mainMenuOverlay">
+            <div class="menu-card">
+                <h1 class="game-title">SUPER VOLLEY</h1>
+                <p class="game-subtitle">Arcade Physics 2D & Multiplayer Arena</p>
+
+                <div class="menu-buttons-list">
+                    <button class="btn btn-primary" id="btnPlayVsAI">
+                        <span>🤖</span> Solo vs AI Bot
+                    </button>
+                    <button class="btn btn-secondary" id="btnPlayLocal">
+                        <span>👥</span> 2 Pemain (1 Keyboard)
+                    </button>
+                    <button class="btn btn-accent" id="btnPlayOnline">
+                        <span>🌐</span> Online Multiplayer (P2P Room)
+                    </button>
+                </div>
+
+                <!-- Pengaturan Arena & Tingkat Kesulitan -->
+                <div class="options-group">
+                    <label for="selectArena">Pilihan Arena:</label>
+                    <select id="selectArena" class="select-input">
+                        <option value="beach">🏖️ Sunset Beach</option>
+                        <option value="neon">⚡ Cyber Neon</option>
+                        <option value="indoor">🏟️ Olympic Gym</option>
+                    </select>
+                </div>
+
+                <div class="options-group">
+                    <label for="selectPoints">Target Poin Menang:</label>
+                    <select id="selectPoints" class="select-input">
+                        <option value="5">5 Poin (Cepat)</option>
+                        <option value="7" selected>7 Poin (Standar)</option>
+                        <option value="11">11 Poin (Turnamen)</option>
+                        <option value="21">21 Poin (Resmi FIVB)</option>
+                    </select>
+                </div>
+
+                <div class="options-group" id="difficultyGroup">
+                    <label for="selectDifficulty">Tingkat AI:</label>
+                    <select id="selectDifficulty" class="select-input">
+                        <option value="easy">Pemula (Easy)</option>
+                        <option value="normal" selected>Normal</option>
+                        <option value="pro">Jago Smash (Pro)</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-glass btn-sm" id="btnOpenControls" style="margin-top: 14px; width: 100%;">
+                    ℹ️ Cara Bermain & Tombol Kontrol
+                </button>
+            </div>
+        </div>
+
+        <!-- OVERLAY: Modal Online Multiplayer -->
+        <div class="overlay-screen hidden" id="multiplayerModal">
+            <div class="menu-card">
+                <h2 class="game-title" style="font-size: 2.2rem;">ONLINE LOBBY</h2>
+                <p class="game-subtitle">Main bersama teman dari browser lain via WebRTC</p>
+
+                <div class="multiplayer-box">
+                    <!-- Host Room Panel -->
+                    <div class="room-panel">
+                        <h4>Buat Room Baru (Host)</h4>
+                        <p style="font-size: 0.85rem; color: var(--text-muted);">Bagikan kode ini kepada teman Anda:</p>
+                        <div class="room-code-display" id="myRoomCode">----</div>
+                        <button class="btn btn-accent btn-sm" id="btnCreateRoom">
+                            Buat Kode Room
+                        </button>
+                        <button class="btn btn-glass btn-sm" id="btnCopyCode" style="display: none;">
+                            📋 Salin Kode
+                        </button>
+                    </div>
+
+                    <!-- Join Room Panel -->
+                    <div class="room-panel">
+                        <h4>Gabung Room (Guest)</h4>
+                        <p style="font-size: 0.85rem; color: var(--text-muted);">Masukkan kode dari teman Anda:</p>
+                        <input type="text" class="room-input" id="joinRoomCodeInput" maxlength="6" placeholder="KODE">
+                        <button class="btn btn-secondary btn-sm" id="btnJoinRoom">
+                            Gabung Permainan
+                        </button>
+                    </div>
+                </div>
+
+                <div class="net-status" id="netStatusMessage">Siap untuk membuat atau bergabung ke room.</div>
+
+                <button class="btn btn-glass btn-sm" id="btnBackFromOnline" style="margin-top: 18px; width: 100%;">
+                    ⬅️ Kembali ke Menu
+                </button>
+            </div>
+        </div>
+
+        <!-- OVERLAY: Petunjuk Kontrol & Cara Main -->
+        <div class="overlay-screen hidden" id="controlsModal">
+            <div class="menu-card">
+                <h2 class="game-title" style="font-size: 2.2rem;">KONTROL PERMAINAN</h2>
+                <p class="game-subtitle">Kuasai teknik passing, jump, dive, dan super spike!</p>
+
+                <div class="controls-grid">
+                    <div class="control-card">
+                        <h4 style="color: var(--primary);">Pemain 1 (Kiri)</h4>
+                        <div class="control-row">
+                            <span>Gerak Kiri / Kanan:</span>
+                            <span><span class="key-badge">A</span> <span class="key-badge">D</span></span>
+                        </div>
+                        <div class="control-row">
+                            <span>Lompat:</span>
+                            <span><span class="key-badge">W</span></span>
+                        </div>
+                        <div class="control-row">
+                            <span>Diving Slide (Bawah):</span>
+                            <span><span class="key-badge">S</span></span>
+                        </div>
+                        <div class="control-row">
+                            <span>Smash / Spike di Udara:</span>
+                            <span><span class="key-badge">SPACE</span></span>
+                        </div>
+                    </div>
+
+                    <div class="control-card">
+                        <h4 style="color: var(--secondary);">Pemain 2 (Kanan)</h4>
+                        <div class="control-row">
+                            <span>Gerak Kiri / Kanan:</span>
+                            <span><span class="key-badge">←</span> <span class="key-badge">→</span></span>
+                        </div>
+                        <div class="control-row">
+                            <span>Lompat:</span>
+                            <span><span class="key-badge">↑</span></span>
+                        </div>
+                        <div class="control-row">
+                            <span>Diving Slide (Bawah):</span>
+                            <span><span class="key-badge">↓</span></span>
+                        </div>
+                        <div class="control-row">
+                            <span>Smash / Spike di Udara:</span>
+                            <span><span class="key-badge">ENTER</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <p style="font-size: 0.88rem; color: #FFA502; margin-bottom: 16px;">
+                    🔥 <strong>Tips Pro:</strong> Kumpulkan meter energi dengan passing yang bagus. Ketika meter 100%, lakukan Spike untuk meluncurkan <em>Super Fireball Smash</em> yang tak terbendung!
+                </p>
+
+                <button class="btn btn-primary btn-sm" id="btnCloseControls" style="width: 100%;">
+                    Mengerti, Siap Main!
+                </button>
+            </div>
+        </div>
+
+        <!-- OVERLAY: Game Over & Kemenangan -->
+        <div class="overlay-screen hidden" id="gameOverModal">
+            <div class="menu-card">
+                <h1 class="game-title" id="winnerName">PLAYER 1 WINS!</h1>
+                <p class="game-subtitle">Pertandingan Selesai</p>
+
+                <div class="stats-list" id="gameOverStats">
+                    <!-- Dinamis via game.js -->
+                </div>
+
+                <div class="menu-buttons-list">
+                    <button class="btn btn-primary" id="btnRematch">
+                        🔄 Main Lagi (Rematch)
+                    </button>
+                    <button class="btn btn-glass" id="btnReturnToMenu">
+                        🏠 Kembali ke Menu Utama
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kontrol Sentuh Virtual untuk Layar Sentuh / Mobile -->
+        <div class="touch-controls" id="touchControls" style="display: none;">
+            <div class="touch-cluster">
+                <button class="touch-btn" id="touchLeft">◀</button>
+                <button class="touch-btn" id="touchRight">▶</button>
+            </div>
+            <div class="touch-cluster">
+                <button class="touch-btn" id="touchDive">🛡️</button>
+                <button class="touch-btn" id="touchJump">▲</button>
+                <button class="touch-btn spike-btn" id="touchSpike">💥</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts Game -->
+    <script src="js/audio.js"></script>
+    <script src="js/physics.js"></script>
+    <script src="js/ai.js"></script>
+    <script src="js/network.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/game.js"></script>
+
+    <!-- Script Pengait UI DOM -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const game = new VolleyballGame();
+
+            // Elemen DOM
+            const mainMenu = document.getElementById('mainMenuOverlay');
+            const multiplayerModal = document.getElementById('multiplayerModal');
+            const controlsModal = document.getElementById('controlsModal');
+            const gameOverModal = document.getElementById('gameOverModal');
+
+            const btnPlayVsAI = document.getElementById('btnPlayVsAI');
+            const btnPlayLocal = document.getElementById('btnPlayLocal');
+            const btnPlayOnline = document.getElementById('btnPlayOnline');
+
+            const selectArena = document.getElementById('selectArena');
+            const selectPoints = document.getElementById('selectPoints');
+            const selectDifficulty = document.getElementById('selectDifficulty');
+
+            const audioToggleBtn = document.getElementById('audioToggleBtn');
+            const controlsHelpBtn = document.getElementById('controlsHelpBtn');
+            const menuHomeBtn = document.getElementById('menuHomeBtn');
+            const btnOpenControls = document.getElementById('btnOpenControls');
+            const btnCloseControls = document.getElementById('btnCloseControls');
+
+            const btnCreateRoom = document.getElementById('btnCreateRoom');
+            const btnCopyCode = document.getElementById('btnCopyCode');
+            const btnJoinRoom = document.getElementById('btnJoinRoom');
+            const joinRoomCodeInput = document.getElementById('joinRoomCodeInput');
+            const myRoomCodeEl = document.getElementById('myRoomCode');
+            const netStatusMsg = document.getElementById('netStatusMessage');
+            const btnBackFromOnline = document.getElementById('btnBackFromOnline');
+
+            const btnRematch = document.getElementById('btnRematch');
+            const btnReturnToMenu = document.getElementById('btnReturnToMenu');
+
+            // Set default settings
+            selectArena.addEventListener('change', (e) => game.setArena(e.target.value));
+            selectPoints.addEventListener('change', (e) => game.setTargetScore(parseInt(e.target.value, 10)));
+            selectDifficulty.addEventListener('change', (e) => game.setDifficulty(e.target.value));
+
+            // Mode Solo vs AI
+            btnPlayVsAI.addEventListener('click', () => {
+                if (window.soundEngine) window.soundEngine.resume();
+                game.setMode('ai');
+                mainMenu.classList.add('hidden');
+                game.startMatch();
+            });
+
+            // Mode 2 Pemain Lokal (1 Keyboard)
+            btnPlayLocal.addEventListener('click', () => {
+                if (window.soundEngine) window.soundEngine.resume();
+                game.setMode('local');
+                mainMenu.classList.add('hidden');
+                game.startMatch();
+            });
+
+            // Mode Online Multiplayer
+            btnPlayOnline.addEventListener('click', () => {
+                if (window.soundEngine) window.soundEngine.resume();
+                mainMenu.classList.add('hidden');
+                multiplayerModal.classList.remove('hidden');
+            });
+
+            btnBackFromOnline.addEventListener('click', () => {
+                game.network.cleanup();
+                multiplayerModal.classList.add('hidden');
+                mainMenu.classList.remove('hidden');
+            });
+
+            // Multiplayer Host: Buat Room
+            btnCreateRoom.addEventListener('click', () => {
+                game.network.onStatusChange = (msg, type) => {
+                    netStatusMsg.textContent = msg;
+                    netStatusMsg.className = `net-status ${type}`;
+                };
+
+                game.network.createRoom((code) => {
+                    myRoomCodeEl.textContent = code;
+                    btnCopyCode.style.display = 'inline-flex';
+                });
+            });
+
+            // Salin Kode Room
+            btnCopyCode.addEventListener('click', () => {
+                const code = myRoomCodeEl.textContent;
+                navigator.clipboard.writeText(code).then(() => {
+                    btnCopyCode.textContent = '✅ Tersalin!';
+                    setTimeout(() => { btnCopyCode.textContent = '📋 Salin Kode'; }, 2000);
+                });
+            });
+
+            // Multiplayer Guest: Gabung Room
+            btnJoinRoom.addEventListener('click', () => {
+                const code = joinRoomCodeInput.value.trim().toUpperCase();
+                if (!code) {
+                    netStatusMsg.textContent = 'Masukkan kode room terlebih dahulu!';
+                    netStatusMsg.className = 'net-status error';
+                    return;
+                }
+
+                game.network.onStatusChange = (msg, type) => {
+                    netStatusMsg.textContent = msg;
+                    netStatusMsg.className = `net-status ${type}`;
+                };
+
+                game.network.joinRoom(code);
+            });
+
+            // Audio Toggle
+            audioToggleBtn.addEventListener('click', () => {
+                const isMuted = window.soundEngine.toggleMute();
+                audioToggleBtn.textContent = isMuted ? '🔇' : '🔊';
+            });
+
+            // Controls Modal
+            btnOpenControls.addEventListener('click', () => controlsModal.classList.remove('hidden'));
+            controlsHelpBtn.addEventListener('click', () => controlsModal.classList.remove('hidden'));
+            btnCloseControls.addEventListener('click', () => controlsModal.classList.add('hidden'));
+
+            // Home / Menu
+            menuHomeBtn.addEventListener('click', () => {
+                game.state = 'MENU';
+                mainMenu.classList.remove('hidden');
+                gameOverModal.classList.add('hidden');
+                multiplayerModal.classList.add('hidden');
+                controlsModal.classList.add('hidden');
+            });
+
+            // Game Over Rematch & Return
+            btnRematch.addEventListener('click', () => {
+                gameOverModal.classList.add('hidden');
+                game.startMatch();
+            });
+
+            btnReturnToMenu.addEventListener('click', () => {
+                gameOverModal.classList.add('hidden');
+                mainMenu.classList.remove('hidden');
+                game.state = 'MENU';
+            });
+
+            // Deteksi Layar Sentuh untuk Virtual Buttons
+            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+                const touchControls = document.getElementById('touchControls');
+                if (touchControls) touchControls.style.display = 'flex';
+
+                const bindTouch = (btnId, keyName) => {
+                    const el = document.getElementById(btnId);
+                    if (!el) return;
+                    el.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        game.activeKeys.add(keyName);
+                    });
+                    el.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        game.activeKeys.delete(keyName);
+                    });
+                };
+
+                bindTouch('touchLeft', 'KeyA');
+                bindTouch('touchRight', 'KeyD');
+                bindTouch('touchJump', 'KeyW');
+                bindTouch('touchDive', 'KeyS');
+                bindTouch('touchSpike', 'Space');
+            }
+        });
+    </script>
+</body>
+</html>

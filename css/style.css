@@ -1,0 +1,573 @@
+/* ============================================================
+   SUPER VOLLEY ARENA - STYLESHEET
+   Modern Glassmorphism, Neon Accents, and Rich Micro-Interactions
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Inter:wght@400;600;700&display=swap');
+
+:root {
+    --bg-color: #0b0d19;
+    --card-bg: rgba(18, 22, 43, 0.78);
+    --card-border: rgba(255, 255, 255, 0.12);
+    --primary: #FF4757;
+    --primary-glow: rgba(255, 71, 87, 0.45);
+    --secondary: #1E90FF;
+    --secondary-glow: rgba(30, 144, 255, 0.45);
+    --accent-gold: #FFA502;
+    --accent-cyan: #00F0FF;
+    --text-main: #FFFFFF;
+    --text-muted: #A4B0BE;
+    --glass-blur: blur(16px);
+    --radius-lg: 20px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
+    --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+body {
+    background-color: var(--bg-color);
+    background-image: 
+        radial-gradient(circle at 15% 20%, rgba(255, 71, 87, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 80%, rgba(30, 144, 255, 0.14) 0%, transparent 45%),
+        linear-gradient(180deg, #070913 0%, #0d1124 100%);
+    font-family: 'Inter', sans-serif;
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+}
+
+/* ================= CONTAINER & CANVAS ================= */
+.game-viewport {
+    position: relative;
+    width: 96vw;
+    max-width: 1240px;
+    aspect-ratio: 1200 / 650;
+    background: #000;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: 
+        0 24px 70px rgba(0, 0, 0, 0.65),
+        0 0 0 1px rgba(255, 255, 255, 0.12),
+        0 0 40px rgba(255, 71, 87, 0.15);
+}
+
+#gameCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* ================= IN-GAME HUD ================= */
+.hud-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 16px 28px;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.team-hud {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(14, 17, 34, 0.72);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--card-border);
+    padding: 10px 18px;
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.team-p1 {
+    border-left: 4px solid var(--primary);
+}
+
+.team-p2 {
+    border-right: 4px solid var(--secondary);
+    flex-direction: row-reverse;
+}
+
+.team-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.team-name {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 1.15rem;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.server-badge {
+    background: var(--accent-gold);
+    color: #121212;
+    font-size: 0.65rem;
+    font-weight: 900;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    animation: pulseGlow 1.5s infinite ease-in-out;
+}
+
+@keyframes pulseGlow {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.75; transform: scale(0.96); }
+}
+
+.power-bar-wrapper {
+    width: 130px;
+    height: 9px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+}
+
+.power-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #FFA502, #FF4757);
+    border-radius: 6px;
+    transition: width 0.2s ease-out;
+}
+
+.power-fill.ready {
+    background: linear-gradient(90deg, #FF4757, #FFD700);
+    box-shadow: 0 0 12px #FFD700;
+    animation: powerReadyPulse 0.8s infinite alternate;
+}
+
+@keyframes powerReadyPulse {
+    from { filter: brightness(1); }
+    to { filter: brightness(1.5); }
+}
+
+.score-digit {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 900;
+    font-size: 2.5rem;
+    line-height: 1;
+    color: #FFF;
+    text-shadow: 0 0 14px rgba(255, 255, 255, 0.4);
+    min-width: 44px;
+    text-align: center;
+}
+
+/* Center HUD & Controls */
+.hud-center {
+    display: flex;
+    gap: 10px;
+    pointer-events: auto;
+}
+
+.hud-btn {
+    background: rgba(18, 22, 43, 0.78);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--card-border);
+    color: #FFF;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: var(--transition-fast);
+}
+
+.hud-btn:hover {
+    transform: scale(1.08);
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+/* ================= MODAL & MENU OVERLAYS ================= */
+.overlay-screen {
+    position: absolute;
+    inset: 0;
+    background: rgba(7, 9, 20, 0.85);
+    backdrop-filter: blur(12px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.overlay-screen.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.menu-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-lg);
+    padding: 36px 42px;
+    max-width: 580px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    animation: cardAppear 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes cardAppear {
+    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.game-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 3rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    background: linear-gradient(135deg, #FFF 20%, #FFA502 60%, #FF4757 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+    text-shadow: 0 10px 30px rgba(255, 71, 87, 0.3);
+}
+
+.game-subtitle {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 28px;
+    letter-spacing: 0.4px;
+}
+
+.menu-buttons-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* ================= BUTTONS ================= */
+.btn {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    padding: 14px 24px;
+    border-radius: var(--radius-md);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    transition: var(--transition-smooth);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #FF4757 0%, #FF6B81 100%);
+    color: #FFF;
+    box-shadow: 0 8px 24px var(--primary-glow);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(255, 71, 87, 0.6);
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #1E90FF 0%, #70A1FF 100%);
+    color: #FFF;
+    box-shadow: 0 8px 24px var(--secondary-glow);
+}
+
+.btn-secondary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(30, 144, 255, 0.6);
+}
+
+.btn-accent {
+    background: linear-gradient(135deg, #FFA502 0%, #ECCC68 100%);
+    color: #1A1A1A;
+    box-shadow: 0 8px 24px rgba(255, 165, 2, 0.35);
+}
+
+.btn-accent:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(255, 165, 2, 0.55);
+}
+
+.btn-glass {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--card-border);
+    color: #FFF;
+}
+
+.btn-glass:hover {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+.btn-sm {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+}
+
+/* ================= OPTIONS ROW ================= */
+.options-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 18px 0;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.options-group label {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+}
+
+.select-input {
+    background: #171A2E;
+    color: #FFF;
+    border: 1px solid var(--card-border);
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 0.9rem;
+    outline: none;
+    cursor: pointer;
+}
+
+/* ================= MULTIPLAYER ROOM UI ================= */
+.multiplayer-box {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin: 20px 0;
+    text-align: left;
+}
+
+.room-panel {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-md);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.room-panel h4 {
+    font-family: 'Outfit', sans-serif;
+    color: var(--accent-cyan);
+    font-size: 1.1rem;
+}
+
+.room-code-display {
+    font-family: 'Outfit', monospace;
+    font-size: 1.8rem;
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: #FFD700;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    text-align: center;
+    border: 1px dashed rgba(255, 215, 0, 0.4);
+}
+
+.room-input {
+    width: 100%;
+    padding: 12px 14px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    color: #FFF;
+    font-family: 'Outfit', monospace;
+    font-size: 1.2rem;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    outline: none;
+}
+
+.room-input:focus {
+    border-color: var(--secondary);
+    box-shadow: 0 0 12px var(--secondary-glow);
+}
+
+.net-status {
+    margin-top: 12px;
+    font-size: 0.88rem;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--text-muted);
+}
+
+.net-status.success { color: #2ED573; }
+.net-status.error { color: #FF4757; }
+.net-status.info { color: #1E90FF; }
+
+/* ================= CONTROLS INFO TABLE ================= */
+.controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    text-align: left;
+    margin: 20px 0;
+}
+
+.control-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-md);
+    padding: 16px;
+}
+
+.control-card h4 {
+    font-family: 'Outfit', sans-serif;
+    margin-bottom: 10px;
+    font-size: 1.05rem;
+}
+
+.key-badge {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 0.8rem;
+    font-family: monospace;
+    font-weight: 700;
+    color: #FFF;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+}
+
+.control-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+/* ================= GAME OVER STATS ================= */
+.stats-list {
+    margin: 22px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: left;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--card-border);
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1rem;
+    color: var(--text-muted);
+}
+
+.stat-row strong {
+    color: #FFF;
+}
+
+/* ================= MOBILE TOUCH CONTROLS ================= */
+.touch-controls {
+    position: absolute;
+    bottom: 12px;
+    left: 0;
+    right: 0;
+    padding: 0 24px;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+    z-index: 25;
+}
+
+.touch-cluster {
+    display: flex;
+    gap: 12px;
+    pointer-events: auto;
+}
+
+.touch-btn {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #FFF;
+    font-size: 1.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+    transition: var(--transition-fast);
+}
+
+.touch-btn:active {
+    transform: scale(0.92);
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.touch-btn.spike-btn {
+    background: var(--primary);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 16px var(--primary-glow);
+}
+
+/* Responsiveness */
+@media (max-width: 820px) {
+    .multiplayer-box, .controls-grid {
+        grid-template-columns: 1fr;
+    }
+    .game-title {
+        font-size: 2.2rem;
+    }
+    .hud-overlay {
+        padding: 8px 12px;
+    }
+    .score-digit {
+        font-size: 1.8rem;
+    }
+    .team-name {
+        font-size: 0.95rem;
+    }
+    .power-bar-wrapper {
+        width: 80px;
+    }
+}
