@@ -33,6 +33,8 @@ class VolleyballGame {
 
         // Mode Game: 'ai' | 'local' | 'online'
         this.mode = 'ai';
+        this.selectedArena = 'beach';
+        this.selectedDifficulty = 'normal';
         this.ai = new VolleyballAI(this.player2, 'normal');
         this.network = new NetworkManager(this);
 
@@ -73,12 +75,14 @@ class VolleyballGame {
     }
 
     setDifficulty(diff) {
+        this.selectedDifficulty = diff;
         if (this.ai) {
             this.ai.setDifficulty(diff);
         }
     }
 
     setArena(theme) {
+        this.selectedArena = theme;
         this.renderer.setTheme(theme);
     }
 
@@ -346,6 +350,7 @@ class VolleyballGame {
         const modal = document.getElementById('gameOverModal');
         const winnerNameEl = document.getElementById('winnerName');
         const statsEl = document.getElementById('gameOverStats');
+        const fbBadgeEl = document.getElementById('firebaseStatusBadge');
 
         if (winnerNameEl) {
             winnerNameEl.textContent = `${this.matchWinner.name} WINS!`;
@@ -362,6 +367,53 @@ class VolleyballGame {
         }
 
         if (modal) modal.classList.remove('hidden');
+
+        // Hubungkan ke Firebase Cloud Firestore
+        if (fbBadgeEl) {
+            fbBadgeEl.textContent = '☁️ Menyimpan ke Cloud Firebase...';
+            fbBadgeEl.className = 'fb-badge saving';
+        }
+
+        if (window.firebaseService && window.firebaseService.isInitialized) {
+            const matchRecord = {
+                winnerName: this.matchWinner ? this.matchWinner.name : 'Unknown',
+                winnerSide: this.matchWinner ? this.matchWinner.id : 'p1',
+                p1Name: this.player1.name,
+                p2Name: this.player2.name,
+                p1Score: this.score.p1,
+                p2Score: this.score.p2,
+                longestRally: this.stats.longestRally,
+                p1Spikes: this.stats.p1Spikes,
+                p2Spikes: this.stats.p2Spikes,
+                mode: this.mode,
+                difficulty: this.mode === 'ai' ? (this.ai ? this.ai.difficulty : 'normal') : '-',
+                arena: this.selectedArena || (this.renderer ? this.renderer.themeName : 'beach'),
+                targetScore: this.targetScore
+            };
+
+            window.firebaseService.saveMatch(matchRecord)
+                .then(res => {
+                    if (fbBadgeEl) {
+                        if (res && res.success) {
+                            fbBadgeEl.textContent = '✅ Berhasil disimpan ke Firebase Cloud!';
+                            fbBadgeEl.className = 'fb-badge saved';
+                        } else {
+                            fbBadgeEl.textContent = '⚠️ ' + (res.error || 'Gagal menyimpan ke Firebase');
+                            fbBadgeEl.className = 'fb-badge error';
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error('Firebase save error:', err);
+                    if (fbBadgeEl) {
+                        fbBadgeEl.textContent = '⚠️ Error koneksi Firebase';
+                        fbBadgeEl.className = 'fb-badge error';
+                    }
+                });
+        } else if (fbBadgeEl) {
+            fbBadgeEl.textContent = '⚡ Mode Offline (Firebase tidak aktif)';
+            fbBadgeEl.className = 'fb-badge offline';
+        }
     }
 
     updateScoreboardUI() {

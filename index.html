@@ -6,6 +6,9 @@
     <title>Super Volley Arena - Game Bola Voli Multiplayer</title>
     <meta name="description" content="Game bola voli arcade fisika 2D interaktif dengan mode 2-Player Lokal dan Online Multiplayer P2P WebRTC.">
     <link rel="stylesheet" href="css/style.css">
+    <!-- Firebase SDK CDN (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
     <!-- PeerJS CDN untuk koneksi WebRTC P2P Multiplayer tanpa server backend -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
@@ -56,8 +59,16 @@
         <!-- OVERLAY: Menu Utama -->
         <div class="overlay-screen" id="mainMenuOverlay">
             <div class="menu-card">
+                <div id="firebaseConnectionStatus" class="fb-conn-status connected">
+                    🟢 Firebase: <strong>fayyaz-gaming</strong> (Aktif)
+                </div>
                 <h1 class="game-title">SUPER VOLLEY</h1>
                 <p class="game-subtitle">Arcade Physics 2D & Multiplayer Arena</p>
+
+                <div class="options-group" style="margin-bottom: 14px;">
+                    <label for="inputPlayerName">Nama Pemain 1:</label>
+                    <input type="text" id="inputPlayerName" class="text-input" maxlength="15" value="Player 1" placeholder="Ketik nama Anda...">
+                </div>
 
                 <div class="menu-buttons-list">
                     <button class="btn btn-primary" id="btnPlayVsAI">
@@ -68,6 +79,9 @@
                     </button>
                     <button class="btn btn-accent" id="btnPlayOnline">
                         <span>🌐</span> Online Multiplayer (P2P Room)
+                    </button>
+                    <button class="btn btn-secondary" id="btnOpenLeaderboard" style="background: linear-gradient(135deg, #FFA502 0%, #FF7F50 100%);">
+                        <span>🏆</span> Leaderboard Global (Cloud)
                     </button>
                 </div>
 
@@ -209,6 +223,11 @@
                 <h1 class="game-title" id="winnerName">PLAYER 1 WINS!</h1>
                 <p class="game-subtitle">Pertandingan Selesai</p>
 
+                <!-- Status Cloud Firestore Sync -->
+                <div id="firebaseStatusBadge" class="fb-badge">
+                    ☁️ Menghubungkan ke Cloud Firebase...
+                </div>
+
                 <div class="stats-list" id="gameOverStats">
                     <!-- Dinamis via game.js -->
                 </div>
@@ -217,8 +236,37 @@
                     <button class="btn btn-primary" id="btnRematch">
                         🔄 Main Lagi (Rematch)
                     </button>
+                    <button class="btn btn-secondary" id="btnGameOverLeaderboard" style="background: linear-gradient(135deg, #FFA502 0%, #FF7F50 100%);">
+                        🏆 Lihat Leaderboard
+                    </button>
                     <button class="btn btn-glass" id="btnReturnToMenu">
                         🏠 Kembali ke Menu Utama
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- OVERLAY: Modal Leaderboard Firebase -->
+        <div class="overlay-screen hidden" id="leaderboardModal">
+            <div class="menu-card card-wide">
+                <h2 class="game-title" style="font-size: 2.2rem;">🏆 LEADERBOARD</h2>
+                <p class="game-subtitle">Skor & Rekor Global di Cloud Firestore</p>
+
+                <div class="leaderboard-tabs">
+                    <button class="tab-btn active" id="tabTopRally">🥇 Rekor Reli Terpanjang</button>
+                    <button class="tab-btn" id="tabRecentMatches">📜 Riwayat Pertandingan</button>
+                </div>
+
+                <div class="leaderboard-content" id="leaderboardList">
+                    <div class="empty-leaderboard">Memuat data dari Firebase...</div>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-accent btn-sm" id="btnRefreshLeaderboard" style="flex: 1;">
+                        🔄 Segarkan
+                    </button>
+                    <button class="btn btn-glass btn-sm" id="btnCloseLeaderboard" style="flex: 1;">
+                        ⬅️ Tutup
                     </button>
                 </div>
             </div>
@@ -244,6 +292,7 @@
     <script src="js/ai.js"></script>
     <script src="js/network.js"></script>
     <script src="js/renderer.js"></script>
+    <script src="js/firebase-service.js"></script>
     <script src="js/game.js"></script>
 
     <!-- Script Pengait UI DOM -->
@@ -256,10 +305,19 @@
             const multiplayerModal = document.getElementById('multiplayerModal');
             const controlsModal = document.getElementById('controlsModal');
             const gameOverModal = document.getElementById('gameOverModal');
+            const leaderboardModal = document.getElementById('leaderboardModal');
 
+            const inputPlayerName = document.getElementById('inputPlayerName');
             const btnPlayVsAI = document.getElementById('btnPlayVsAI');
             const btnPlayLocal = document.getElementById('btnPlayLocal');
             const btnPlayOnline = document.getElementById('btnPlayOnline');
+            const btnOpenLeaderboard = document.getElementById('btnOpenLeaderboard');
+            const btnGameOverLeaderboard = document.getElementById('btnGameOverLeaderboard');
+            const btnCloseLeaderboard = document.getElementById('btnCloseLeaderboard');
+            const btnRefreshLeaderboard = document.getElementById('btnRefreshLeaderboard');
+            const tabTopRally = document.getElementById('tabTopRally');
+            const tabRecentMatches = document.getElementById('tabRecentMatches');
+            const leaderboardList = document.getElementById('leaderboardList');
 
             const selectArena = document.getElementById('selectArena');
             const selectPoints = document.getElementById('selectPoints');
@@ -282,6 +340,15 @@
             const btnRematch = document.getElementById('btnRematch');
             const btnReturnToMenu = document.getElementById('btnReturnToMenu');
 
+            // Sinkronisasi Nama Pemain
+            if (inputPlayerName) {
+                inputPlayerName.addEventListener('input', (e) => {
+                    const customName = e.target.value.trim() || 'Player 1';
+                    game.player1.name = customName;
+                    game.updateScoreboardUI();
+                });
+            }
+
             // Set default settings
             selectArena.addEventListener('change', (e) => game.setArena(e.target.value));
             selectPoints.addEventListener('change', (e) => game.setTargetScore(parseInt(e.target.value, 10)));
@@ -290,6 +357,9 @@
             // Mode Solo vs AI
             btnPlayVsAI.addEventListener('click', () => {
                 if (window.soundEngine) window.soundEngine.resume();
+                if (inputPlayerName && inputPlayerName.value.trim()) {
+                    game.player1.name = inputPlayerName.value.trim();
+                }
                 game.setMode('ai');
                 mainMenu.classList.add('hidden');
                 game.startMatch();
@@ -298,6 +368,9 @@
             // Mode 2 Pemain Lokal (1 Keyboard)
             btnPlayLocal.addEventListener('click', () => {
                 if (window.soundEngine) window.soundEngine.resume();
+                if (inputPlayerName && inputPlayerName.value.trim()) {
+                    game.player1.name = inputPlayerName.value.trim();
+                }
                 game.setMode('local');
                 mainMenu.classList.add('hidden');
                 game.startMatch();
@@ -306,6 +379,9 @@
             // Mode Online Multiplayer
             btnPlayOnline.addEventListener('click', () => {
                 if (window.soundEngine) window.soundEngine.resume();
+                if (inputPlayerName && inputPlayerName.value.trim()) {
+                    game.player1.name = inputPlayerName.value.trim();
+                }
                 mainMenu.classList.add('hidden');
                 multiplayerModal.classList.remove('hidden');
             });
@@ -373,6 +449,7 @@
                 gameOverModal.classList.add('hidden');
                 multiplayerModal.classList.add('hidden');
                 controlsModal.classList.add('hidden');
+                leaderboardModal.classList.add('hidden');
             });
 
             // Game Over Rematch & Return
@@ -385,6 +462,137 @@
                 gameOverModal.classList.add('hidden');
                 mainMenu.classList.remove('hidden');
                 game.state = 'MENU';
+            });
+
+            // ================= LOGIKA LEADERBOARD FIREBASE =================
+            let currentTab = 'topRally';
+
+            function escapeHtml(str) {
+                if (!str) return '';
+                return String(str).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+            }
+
+            async function loadLeaderboardData() {
+                leaderboardList.innerHTML = `<div class="empty-leaderboard">⏳ Memuat data dari Cloud Firestore...</div>`;
+
+                if (!window.firebaseService || !window.firebaseService.isInitialized) {
+                    leaderboardList.innerHTML = `<div class="empty-leaderboard">⚠️ Firebase belum siap atau koneksi terputus. Pastikan internet aktif.</div>`;
+                    return;
+                }
+
+                if (currentTab === 'topRally') {
+                    const res = await window.firebaseService.getLeaderboard('longestRally', 10);
+                    if (!res.success || !res.data || res.data.length === 0) {
+                        leaderboardList.innerHTML = `<div class="empty-leaderboard">Belum ada rekor tersimpan di Cloud Firestore.<br><small>Selesaikan satu game untuk mencatat rekor pertama!</small></div>`;
+                        return;
+                    }
+
+                    let html = `
+                        <table class="leader-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 44px;">#</th>
+                                    <th>Pemain</th>
+                                    <th>Reli Tertinggi</th>
+                                    <th>Spikes</th>
+                                    <th>Arena</th>
+                                    <th>Tanggal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    res.data.forEach((item, idx) => {
+                        const rankClass = idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : 'rank-other';
+                        html += `
+                            <tr>
+                                <td><span class="rank-pill ${rankClass}">${idx + 1}</span></td>
+                                <td><strong>${escapeHtml(item.playerName || 'Player')}</strong></td>
+                                <td><strong style="color: #FFA502;">${item.longestRally || 0} hits</strong></td>
+                                <td>${item.spikesCount || 0}</td>
+                                <td><span style="text-transform: capitalize; color: #A4B0BE;">${item.arena || '-'}</span></td>
+                                <td style="font-size: 0.82rem; color: #888;">${item.dateString || 'Baru'}</td>
+                            </tr>
+                        `;
+                    });
+
+                    html += `</tbody></table>`;
+                    leaderboardList.innerHTML = html;
+                } else {
+                    const res = await window.firebaseService.getRecentMatches(8);
+                    if (!res.success || !res.data || res.data.length === 0) {
+                        leaderboardList.innerHTML = `<div class="empty-leaderboard">Belum ada riwayat pertandingan.<br><small>Mainkan pertandingan untuk menyimpan riwayat!</small></div>`;
+                        return;
+                    }
+
+                    let html = `
+                        <table class="leader-table">
+                            <thead>
+                                <tr>
+                                    <th>Pemenang</th>
+                                    <th>Skor</th>
+                                    <th>Mode</th>
+                                    <th>Reli</th>
+                                    <th>Waktu</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    res.data.forEach((item) => {
+                        const winnerColor = item.winnerSide === 'p1' ? '#FF4757' : '#1E90FF';
+                        const modeLabel = item.mode === 'ai' ? `Vs AI (${item.difficulty || 'normal'})` : item.mode === 'local' ? '2P Lokal' : 'Online P2P';
+                        html += `
+                            <tr>
+                                <td><strong style="color: ${winnerColor}">🏆 ${escapeHtml(item.winnerName || 'Winner')}</strong></td>
+                                <td><strong>${item.p1Score} - ${item.p2Score}</strong> <small style="color: #888;">(${escapeHtml(item.p1Name)} vs ${escapeHtml(item.p2Name)})</small></td>
+                                <td><span style="color: #A4B0BE;">${modeLabel}</span></td>
+                                <td>${item.longestRally || 0} hits</td>
+                                <td style="font-size: 0.82rem; color: #888;">${new Date(item.createdAtClient || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                            </tr>
+                        `;
+                    });
+
+                    html += `</tbody></table>`;
+                    leaderboardList.innerHTML = html;
+                }
+            }
+
+            // Buka Modal Leaderboard dari Menu Utama
+            btnOpenLeaderboard.addEventListener('click', () => {
+                leaderboardModal.classList.remove('hidden');
+                loadLeaderboardData();
+            });
+
+            // Buka Modal Leaderboard dari Layar Game Over
+            btnGameOverLeaderboard.addEventListener('click', () => {
+                leaderboardModal.classList.remove('hidden');
+                loadLeaderboardData();
+            });
+
+            // Tutup Modal Leaderboard
+            btnCloseLeaderboard.addEventListener('click', () => {
+                leaderboardModal.classList.add('hidden');
+            });
+
+            // Tombol Refresh Leaderboard
+            btnRefreshLeaderboard.addEventListener('click', () => {
+                loadLeaderboardData();
+            });
+
+            // Switch Tab
+            tabTopRally.addEventListener('click', () => {
+                currentTab = 'topRally';
+                tabTopRally.classList.add('active');
+                tabRecentMatches.classList.remove('active');
+                loadLeaderboardData();
+            });
+
+            tabRecentMatches.addEventListener('click', () => {
+                currentTab = 'recentMatches';
+                tabRecentMatches.classList.add('active');
+                tabTopRally.classList.remove('active');
+                loadLeaderboardData();
             });
 
             // Deteksi Layar Sentuh untuk Virtual Buttons
